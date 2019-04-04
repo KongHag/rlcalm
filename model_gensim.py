@@ -48,10 +48,7 @@ def read_csv(file_name, json_file, format):
 #Convert csv data into json and write it
 def write_json(data, json_file, format):
     with open(json_file, "w") as f:
-        if format == "pretty":
-            f.write(json.dumps(data, sort_keys=False, indent=4, separators=(',', ': '),encoding="utf-8",ensure_ascii=False))
-        else:
-            f.write(json.dumps(data,indent=2))
+            json.dump(data,f,indent=2)
 
 #Transfrom csv train file into json
 read_csv(file_name=data_file,json_file='train.json',format=None)
