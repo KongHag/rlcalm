@@ -38,7 +38,7 @@ path_model = this_folder+'/MODEL/'
 #Read CSV File
 def read_csv(file_name, json_file, format):
     csv_rows = []
-    with open(file_name,'r') as csvfile:
+    with open(file_name,"r") as csvfile:
         reader = csv.DictReader(csvfile)
         title = reader.fieldnames
         for row in reader:
@@ -51,10 +51,10 @@ def write_json(data, json_file, format):
         if format == "pretty":
             f.write(json.dumps(data, sort_keys=False, indent=4, separators=(',', ': '),encoding="utf-8",ensure_ascii=False))
         else:
-            f.write(json.dumps(data))
+            f.write(json.dumps(data,indent=2))
 
 #Transfrom csv train file into json
-read_csv(file_name=data_file,json_file='train.json',format='pretty')
+read_csv(file_name=data_file,json_file='train.json',format=None)
 
 nlp = spacy.load('en_coref_lg')
 
