@@ -7,13 +7,12 @@ https://www.kaggle.com/dborkan/benchmark-kernel/notebook
 import numpy as np # linear algebra
 import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)
 
-# Input data files are available in the "../input/" directory.
-# For example, running this (by clicking run or pressing Shift+Enter) will list the files in the input directory
+
 
 import os
 print(os.listdir(".."))
-print(os.listdir("/glove-global-vectors-for-word-representation"))
-print(os.listdir("/jigsaw-unintended-bias-in-toxicity-classification"))
+print(os.listdir("../glove-global-vectors-for-word-representation"))
+print(os.listdir("../jigsaw-unintended-bias-in-toxicity-classification"))
 
 # Any results you write to the current directory are saved as output.
 from __future__ import absolute_import
@@ -46,7 +45,8 @@ from keras.optimizers import RMSprop
 from keras.models import Model
 from keras.models import load_model
 
-train = pd.read_csv('/jigsaw-unintended-bias-in-toxicity-classification/train.csv')
+#%%
+train = pd.read_csv('../jigsaw-unintended-bias-in-toxicity-classification/train.csv')
 print('loaded %d records' % len(train))
 
 # Make sure all comment_text values are strings
@@ -89,6 +89,8 @@ DROPOUT_RATE = 0.3
 LEARNING_RATE = 0.00005
 NUM_EPOCHS = 10
 BATCH_SIZE = 128
+
+#%%
 
 def train_model(train_df, validate_df, tokenizer):
     # Prepare data
@@ -158,6 +160,8 @@ def train_model(train_df, validate_df, tokenizer):
 
     return model
 
+#%%
+
 model = train_model(train_df, validate_df, tokenizer)
 MODEL_NAME = 'my_model'
 validate_df[MODEL_NAME] = model.predict(pad_text(validate_df[TEXT_COLUMN], tokenizer))[:, 1]
@@ -166,6 +170,7 @@ SUBGROUP_AUC = 'subgroup_auc'
 BPSN_AUC = 'bpsn_auc'  # stands for background positive, subgroup negative
 BNSP_AUC = 'bnsp_auc'  # stands for background negative, subgroup positive
 
+#%%
 def compute_auc(y_true, y_pred):
     try:
         return metrics.roc_auc_score(y_true, y_pred)
@@ -227,9 +232,10 @@ def get_final_metric(bias_df, overall_auc, POWER=-5, OVERALL_MODEL_WEIGHT=0.25):
         power_mean(bias_df[BNSP_AUC], POWER)
     ])
     return (OVERALL_MODEL_WEIGHT * overall_auc) + ((1 - OVERALL_MODEL_WEIGHT) * bias_score)
-    
+#%%
+
 get_final_metric(bias_metrics_df, calculate_overall_auc(validate_df, MODEL_NAME))
-test = pd.read_csv('/jigsaw-unintended-bias-in-toxicity-classification/test.csv')
-submission = pd.read_csv('/jigsaw-unintended-bias-in-toxicity-classification/sample_submission.csv', index_col='id')
+test = pd.read_csv('../jigsaw-unintended-bias-in-toxicity-classification/test.csv')
+submission = pd.read_csv('../jigsaw-unintended-bias-in-toxicity-classification/sample_submission.csv', index_col='id')
 submission['prediction'] = model.predict(pad_text(test[TEXT_COLUMN], tokenizer))[:, 1]
 submission.to_csv('submission.csv')
