@@ -51,7 +51,9 @@ def write_json(data, json_file, format):
             json.dump(data,f,indent=2)
 
 #Transfrom csv train file into json
-read_csv(file_name=data_file,json_file='train.json',format=None)
+read_csv(file_name=data_file,json_file=raw_dataset,format=None)
+
+print("JSONIZED RAW DATASET FILE IS READY ON",raw_dataset)
 
 nlp = spacy.load('en_coref_lg')
 
@@ -81,7 +83,7 @@ def train_model(training_data):
     """ THIS MODULE TRAIN GENSIM MODEL ON THE BUILT DATASET """
     documents = [TaggedDocument(doc, [i]) for i, doc in enumerate(training_data)] 
     print("DOCUMENTS IN DATASET",len(documents))
-    model = Doc2Vec(documents, vector_size=VECTOR_DIMENSION, window=1, min_count=1, workers=50,epochs=60)
+    model = Doc2Vec(documents, vector_size=VECTOR_DIMENSION, window=50, min_count=1, workers=50,epochs=60)
     model_name = GENSIM_MODEL_NAME
     fname = os.path.join(path_model,model_name)
     model.save(fname)
