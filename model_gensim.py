@@ -36,9 +36,9 @@ path_output = this_folder+'/OUTPUT/'
 dataset_file = os.path.join(path_output,'training_dataset.json')
 path_model = this_folder+'/MODEL/'
 #Read CSV File
-def read_csv(file, json_file, format):
+def read_csv(file_name, json_file, format):
     csv_rows = []
-    with open(file) as csvfile:
+    with open(file_name,'r') as csvfile:
         reader = csv.DictReader(csvfile)
         title = reader.fieldnames
         for row in reader:
@@ -54,7 +54,7 @@ def write_json(data, json_file, format):
             f.write(json.dumps(data))
 
 #Transfrom csv train file into json
-read_csv(file=data_file,json_file='train.json',format='pretty')
+read_csv(file_name=data_file,json_file='train.json',format='pretty')
 
 nlp = spacy.load('en_coref_lg')
 
