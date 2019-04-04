@@ -89,6 +89,8 @@ def train_model(training_data):
     model.save(fname)
     return fname
 
+# UPDATE VECTORIZE USING DEPENDENCY TREE
+
 def vectorize(chunk,fname):
     model = Doc2Vec.load(fname)
     return model.infer_vector([t for t in chunk.split()])
