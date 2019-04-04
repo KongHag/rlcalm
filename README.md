@@ -9,3 +9,4 @@ Ne mettre que des chemins relatifs dansles scripts
 ## Listes d'idées à ne pas oublier:
 - [ ] Ajouter les données test dans la vectorisation
 - [ ] Attention à la forme de la prédiction finale (catégories vs. float) comme la métrique finale utilise des ROC
+- [ ] /!\ Les minorités ne sont pas exclusives (e.g. black + homosexuel + mental illness )
