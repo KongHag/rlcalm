@@ -6,6 +6,7 @@
 ___
 ## Listes d'idées à traiter :
 - [x] Commencer un modèle de Benchmark de base
+- [ ] Modifier Vectorize pour inclure le dependency tree
 - [ ] Ajouter les données test dans la vectorisation
 - [ ] Attention à la forme de la prédiction finale (catégories vs. float) comme la métrique finale utilise des ROC
   - [ ] Tester avec des valeurs discrètes en sortie
