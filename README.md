@@ -6,7 +6,7 @@ Mettre toutes les données dans \jigsaw-unintended-bias-in-toxicity-classificati
 ###
 Ne mettre que des chemins relatifs dansles scripts
 ###
-Listes de remaerques:
-* Ajouter les données test dans la vectorisation
-* Attention à la forme de la prédiction finale (catégories vs. float) comme la métrique finale utilise des ROC
-* 
+## Listes de remarques:
+- [ ] Ajouter les données test dans la vectorisation
+- [ ] Attention à la forme de la prédiction finale (catégories vs. float) comme la métrique finale utilise des ROC
+
