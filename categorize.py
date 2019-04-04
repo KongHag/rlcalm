@@ -56,7 +56,7 @@ ts1 = datetime.now().timestamp()
 dataset_minority_category = dict()
 tagged = []
 for tag in minority_tags:
-    dataset = [{'id':data['id'],'comment_text':data['comment_text']} for data in json_data if data[tag]==1]
+    dataset = [{'id':data['id'],'comment_text':data['comment_text'],'target':data['target'],'severe_toxicity':data['severe_toxicity'],'obscene':data['obscene'],'identity_attack':data['identity_attack'],'insult':data['insult'],'threat':data['threat']} for data in json_data if data[tag]==1]
     dataset_minority_category[tag] = dataset
     tagged += dataset
 dataset_minority_category['no_tag'] = [data for data in json_data if data not in dataset]
