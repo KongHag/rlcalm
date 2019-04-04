@@ -47,7 +47,7 @@ minority_tags = ['asian',
 
 this_folder = os.path.dirname(os.path.abspath(__file__))
 path = this_folder + '/jigsaw-unintended-bias-in-toxicity-classification/'
-output_path = this_folder + '/jigsaw-unintended-bias-in-toxicity-classification/OUTPUT/'
+output_path = this_folder + '/OUTPUT/'
 json_data_file = os.path.join(path,'train.json')
 with open(json_data_file,'r') as json_file:
     json_data = json.load(json_file)
