@@ -5,8 +5,11 @@
 + Ne mettre que des chemins relatifs dans les scripts
 ___
 ## Listes d'idées à traiter :
+- [x] Commencer un modèle de Benchmark de base
 - [ ] Ajouter les données test dans la vectorisation
 - [ ] Attention à la forme de la prédiction finale (catégories vs. float) comme la métrique finale utilise des ROC
+  - [ ] Tester avec des valeurs discrètes en sortie
+  - [ ] Tester avec des valeurs continues en sortie
 - [ ] Les minorités ne sont pas exclusives (e.g. black + homosexuel + mental illness ) 
 > "*Je suis un '__orientation sexuelle__' '__handicap mental__' et je déteste les '__religion__' (et les) '__race__'.*"
 ___
