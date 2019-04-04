@@ -76,7 +76,7 @@ def build_dataset(file_name):
         data = json.load(json_file)
     for d in data:
         if d['comment_text'] != None:
-            doc = nlp(c['comment_text'])
+            doc = nlp(d['comment_text'])
             sentences = [sent for sent in doc.sents]
             for sent in sentences:
                 response.append([token for token in sent.text.split()])
