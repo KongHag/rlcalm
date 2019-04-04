@@ -52,10 +52,10 @@ def write_json(data, json_file, format):
 
 #Transfrom csv train file into json
 ts1 = datetime.now().timestamp()
-read_csv(file_name=data_file,json_file=raw_dataset,format=None)
+#read_csv(file_name=data_file,json_file=raw_dataset,format=None)
 
-print("JSONIZED RAW DATASET FILE IS READY ON",raw_dataset)
-print("JSONIZATION EXECUTED IN",int(datetime.now().timestamp()-ts1)," SECONDES")
+#print("JSONIZED RAW DATASET FILE IS READY ON",raw_dataset)
+#print("JSONIZATION EXECUTED IN",int(datetime.now().timestamp()-ts1)," SECONDES")
 
 nlp = spacy.load('en_coref_lg')
 
@@ -76,7 +76,7 @@ def build_dataset(file_name):
         data = json.load(json_file)
     for d in data:
         if d['comment_text'] != None:
-            doc = nlp(data['comment_text'])
+            doc = nlp(c['comment_text'])
             sentences = [sent for sent in doc.sents]
             for sent in sentences:
                 response.append([token for token in sent.text.split()])
