@@ -10,4 +10,4 @@ Ne mettre que des chemins relatifs dansles scripts
 - [ ] Ajouter les données test dans la vectorisation
 - [ ] Attention à la forme de la prédiction finale (catégories vs. float) comme la métrique finale utilise des ROC
 - [ ] Les minorités ne sont pas exclusives (e.g. black + homosexuel + mental illness )
-- [ ] "Je suis un __orientation sexuelle__ __handicap mental__ et je déteste les __religion__ (et les) __race__"
+- [ ] >"Je suis un '''__orientation sexuelle__''' '''__handicap mental__''' et je déteste les '''__religion__''' (et les) '''__race__'''."
