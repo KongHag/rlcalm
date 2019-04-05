@@ -14,3 +14,5 @@ ___
 - [ ] Les minorités ne sont pas exclusives (e.g. black + homosexuel + mental illness ) 
 > "*Je suis un '__orientation sexuelle__' '__handicap mental__' et je déteste les '__religion__' (et les) '__race__'.*"
 ___
+
++ https://towardsdatascience.com/beyond-word-embeddings-part-2-word-vectors-nlp-modeling-from-bow-to-bert-4ebd4711d0ec
