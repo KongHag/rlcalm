@@ -274,7 +274,7 @@ path_model = this_folder + 'Models/' +  Model_Name
 
 auc_score = make_scorer(roc_auc_score)
 
-def train_classifier(d2v, training_vectors, training_labels):
+def train_classifier(X_train, y_train):
     logging.info("Classifier training")
     '''
     Trying to find the best Random Forest configuration
