@@ -23,7 +23,7 @@ from profanity import profanity ##pip install profanity
 from keras.preprocessing import sequence
 from keras.preprocessing.text import Tokenizer
 
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import RandomizedSearchCV
 from sklearn.metrics import make_scorer, roc_auc_score
 
@@ -280,24 +280,24 @@ def train_classifier(X_train, y_train):
     Trying to find the best Random Forest configuration
     '''
     # Find the optimal Random Forest Classifier Hyperparameters
-    n_estimators = [int(x) for x in np.linspace(start = 50, stop = 200, num = 10)]
-    max_features = ['auto', 'sqrt']
-    criterion = ['gini', 'entropy']
+    n_estimators = [int(x) for x in np.linspace(start = 10, stop = 200, num = 10)]
+    criterion = ['mse', 'mae']
     max_depth = [int(x) for x in np.linspace(10, 50, num = 10)]
     max_depth.append(None)
-    rfc = RandomForestClassifier(n_jobs = Workers)
-    random_grid = {'n_estimators': n_estimators, 'criterion' : criterion, 'max_features': max_features,'max_depth': max_depth}
-    rfc_random = RandomizedSearchCV(estimator = rfc, param_distributions = random_grid, scoring = auc_score, n_iter = 100, cv = 3, verbose=2, random_state=42, n_jobs = Workers)
-    rfc_random.fit(X_train, y_train)
-    best_parameters = rfc_random.best_params_
-    model = RandomForestClassifier(n_estimators = best_parameters['n_estimators'], criterion = best_parameters['criterion'], max_features = best_parameters['max_features'], max_depth = best_parameters['max_depth'], n_jobs = Workers)
+    rfr = RandomForestRegressor(n_jobs = Workers)
+    random_grid = {'n_estimators': n_estimators, 'criterion' : criterion,'max_depth': max_depth}
+    rfr_random = RandomizedSearchCV(estimator = rfr, param_distributions = random_grid, scoring = auc_score, n_iter = 100, cv = 3, verbose=2, random_state=42, n_jobs = Workers)
+    rfr_random.fit(X_train, y_train)
+    best_parameters = rfr_random.best_params_
+    model = RandomForestRegressor(n_estimators = best_parameters['n_estimators'], criterion = best_parameters['criterion'], max_depth = best_parameters['max_depth'], n_jobs = Workers)
     model.fit(X_train, np.array(y_train))
     model_file = os.path.join(path_model)
     pickle.dump(model, open(model_file, 'wb'))
     logging.info("Classification model saved on :{}".format(model_file))
+    print("n_estimators : ", best_parameters[n_estimators], "Criterion : ",best_parameters[criterion],  "Max_depth : ", best_parameters[max_depth])
     return model
 
-
+model = train_classifier(X_train, y_train)
 
 
 
