@@ -23,6 +23,7 @@ from profanity import profanity ##pip install profanity
 from keras.preprocessing import sequence
 from keras.preprocessing.text import Tokenizer
 
+from sklearn.utils import Shuffle
 from sklearn.preprocessing import OneHotEncoder 
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import RandomizedSearchCV
@@ -84,6 +85,8 @@ for i in range(len(y_train)): ##Making it 1 or 0
         y_train[i] = 1
     else:
         y_train[i] = 0
+        
+X_train, y_train = Shuffle(X_train, y_train, random_state = 0)        
         
 y_train = np.array(y_train)  ## [0 1] means that the comment is toxic
 OneHotEncoder = OneHotEncoder(sparse = False)
