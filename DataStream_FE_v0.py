@@ -23,9 +23,10 @@ from profanity import profanity ##pip install profanity
 from keras.preprocessing import sequence
 from keras.preprocessing.text import Tokenizer
 
-from sklearn.ensemble import RandomForestRegressor
+from sklearn.preprocessing import OneHotEncoder 
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import RandomizedSearchCV
-from sklearn.metrics import make_scorer, roc_auc_score
+from sklearn.metrics import make_scorer, roc_auc_score, f1_score
 
 ###############################################################################
 ########################### Loading Data ######################################
@@ -77,6 +78,17 @@ while counting_toxic_comments < training_samples_per_class :
         exploring_the_data += 1
     else :
         exploring_the_data += 1
+        
+for i in range(len(y_train)): ##Making it 1 or 0
+    if (y_train[i] >= 0.5):
+        y_train[i] = 1
+    else:
+        y_train[i] = 0
+        
+y_train = np.array(y_train)  ## [0 1] means that the comment is toxic
+OneHotEncoder = OneHotEncoder(sparse = False)
+y_train = y_train.reshape(len(y_train), 1)
+y_train_encoded = OneHotEncoder.fit_transform(y_train)
         
 ###############################################################################
 ############################ Data listing #####################################
@@ -257,47 +269,77 @@ maxlen = len(max((s for s in np.r_[X_train, X_test]), key=len))
 X_train = sequence.pad_sequences(X_train, maxlen=maxlen, padding='post')
 X_test = sequence.pad_sequences(X_test, maxlen=maxlen, padding='post')
 
+def filter_embeddings(embeddings, word_index, vocab_size, dim=300):
+    embedding_matrix = np.zeros([vocab_size, dim])
+    for word, i in word_index.items():
+        if i >= vocab_size:
+            continue
+        vector = embeddings.get(word)
+        if vector is not None:
+            embedding_matrix[i] = vector
+    return embedding_matrix
+
+embedding_size = 200 ##Twitter Glove format
+embedding_matrix = filter_embeddings(embeddings, tokenizer.word_index,
+                                     vocab_size, embedding_size)
+
+def from_indexed_words_to_vectors(X, embedding_matrix):
+    n, m = X.shape
+    _, embedding_size = embedding_matrix.shape
+    res = np.zeros((n,m*embedding_size))
+    for i in range(n):
+        for j in range(m):
+            index = X[i,j]
+            vector = embedding_matrix[index, :]
+            res[i, j*embedding_size:(j+1)*embedding_size] = vector
+    return res
+
+X_train = from_indexed_words_to_vectors(X_train, embedding_matrix)
+
 ###############################################################################
 ####################### Merging Vector + features #############################
 ###############################################################################
 
 X_train = [X_train[i].tolist() + F_train[i, :].tolist() for i in range(len(X_train))]
-X_test = [X_test[i].tolist() + F_test[i, :].tolist() for i in range(len(X_test))]
+#X_test = [X_test[i].tolist() + F_test[i, :].tolist() for i in range(len(X_test))]
 
 ###############################################################################
 ################################ Modeling #####################################
 ###############################################################################
 
-Workers = 30
 Model_Name = 'RF_FE_Twitter_v0'
-path_model = this_folder + 'Models/' +  Model_Name
+path_model = this_folder + 'Models/' 
 
-auc_score = make_scorer(roc_auc_score)
+roc_auc = make_scorer(roc_auc_score)
 
-def train_classifier(X_train, y_train):
+def train_classifier(X_train, y_train_encoded):
     logging.info("Classifier training")
-    '''
-    Trying to find the best Random Forest configuration
-    '''
     # Find the optimal Random Forest Classifier Hyperparameters
-    n_estimators = [int(x) for x in np.linspace(start = 10, stop = 200, num = 10)]
-    criterion = ['mse', 'mae']
-    max_depth = [int(x) for x in np.linspace(10, 50, num = 10)]
+    n_estimators = [int(x) for x in np.linspace(start = 50, stop = 200, num = 10)]
+    max_features = ['auto', 'sqrt']
+    criterion = ['gini', 'entropy']
+    max_depth = [int(x) for x in np.linspace(100, 500, num = 11)]
     max_depth.append(None)
-    rfr = RandomForestRegressor(n_jobs = Workers)
-    random_grid = {'n_estimators': n_estimators, 'criterion' : criterion,'max_depth': max_depth}
-    rfr_random = RandomizedSearchCV(estimator = rfr, param_distributions = random_grid, scoring = auc_score, n_iter = 100, cv = 3, verbose=2, random_state=42, n_jobs = Workers)
-    rfr_random.fit(X_train, y_train)
-    best_parameters = rfr_random.best_params_
-    model = RandomForestRegressor(n_estimators = best_parameters['n_estimators'], criterion = best_parameters['criterion'], max_depth = best_parameters['max_depth'], n_jobs = Workers)
-    model.fit(X_train, np.array(y_train))
-    model_file = os.path.join(path_model)
+    rfc = RandomForestClassifier()
+    random_grid = {'n_estimators': n_estimators, 'criterion': criterion, 'max_features': max_features,'max_depth': max_depth}
+    rfc_random = RandomizedSearchCV(estimator = rfc, param_distributions = random_grid, n_iter = 100, scoring = roc_auc, cv = 3, verbose=2, random_state=42)
+    rfc_random.fit(X_train, np.array(y_train_encoded))
+    best_parameters = rfc_random.best_params_
+    model = RandomForestClassifier(n_estimators = best_parameters['n_estimators'], criterion = best_parameters['criterion'], max_features = best_parameters['max_features'], max_depth = best_parameters['max_depth'])
+    model.fit(X_train, np.array(y_train_encoded))
+    model_file = os.path.join(path_model, Model_Name)
     pickle.dump(model, open(model_file, 'wb'))
     logging.info("Classification model saved on :{}".format(model_file))
-    print("n_estimators : ", best_parameters[n_estimators], "Criterion : ",best_parameters[criterion],  "Max_depth : ", best_parameters[max_depth])
+
+    training_predictions = model.predict(X_train)
+    
+    logging.info('Training predicted classes: {}'.format(np.unique(training_predictions)))
+    logging.info('Training accuracy: {}'.format(roc_auc(X_train, y_train_encoded)))
+    logging.info('Training F1 score: {}'.format(f1_score(y_train, training_predictions, average='weighted')))
+    logging.info("Saving classification model")
     return model
 
-model = train_classifier(X_train, y_train)
+model = train_classifier(X_train, y_train_encoded)
 
 
 
