@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import os
+
 import re
+import tqdm
 import numpy as np
 import pandas as pd
 import tensorflow as tf
 import keras.backend as K
 from keras.preprocessing import text, sequence
 from keras.preprocessing.text import Tokenizer
-from keras.preprocessing.sequence import pad_sequences
 from keras.engine.topology import Layer
 from keras import initializers, regularizers, constraints
 from keras.layers import *
 from keras.models import Model
-from keras.optimizers import Adam
-from sklearn.preprocessing import LabelEncoder 
+from keras.optimizers import Adam 
+
 
 """
 COPYRIGHT A2IM-ROBOTADVISORS & INSTITUT LOUIS BACHELIER
@@ -47,48 +47,26 @@ print("Test shape:", df_test.shape)
 ###############################################################################
 
 df_train = df_train.sample(frac=1).reset_index(drop=True)
-df_test = df_test.sample(frac=1).reset_index(drop=True)
 
 ###############################################################################
 ##################### Imposing the training data proprotions !#################
 ###############################################################################
 
-training_samples = 100000
-training_samples_per_class = training_samples // 2
-validation_samples = 100000
-testing_samples = 100000
+training_samples = 1804874
 
 df_train = df_train.rename(columns=({"comment_text":"Reviews"}))
 df_train = df_train.rename(columns=({"target":"Label"}))
 df_test = df_test.rename(columns=({"comment_text":"Reviews"}))
 
-X_train = []
-Y_train = []
-
-counting_toxic_comments = 0
-counting_non_toxic_comments = 0
-exploring_the_data = 0
-
-while counting_toxic_comments < training_samples_per_class :
-    review, label = df_train.iloc[exploring_the_data]['Reviews'], df_train.iloc[exploring_the_data]['Label']
-    if label < 0.5 and counting_non_toxic_comments < training_samples_per_class :
-        X_train += [review]
-        Y_train += [label]
-        counting_non_toxic_comments += 1
-        exploring_the_data += 1
-    elif label > 0.5 :
-        X_train += [review]
-        Y_train += [label]
-        counting_toxic_comments += 1
-        exploring_the_data += 1
-    else :
-        exploring_the_data += 1
-        
-X_test = []
-
-for i in range(len(df_test)):
-    review = df_test.iloc[i]['Reviews']
-    X_test += [review]
+X_train = df_train['Reviews'].values
+Y_train = df_train['Label'].values
+X_test = df_test['Reviews'].values
+    
+for i in range(len(Y_train)):
+    if (Y_train[i] >= 0.5):
+        Y_train[i] = 1
+    else:
+        Y_train[i] = 0
     
 ###############################################################################
 ################################## Embedding !#################################
@@ -114,16 +92,10 @@ print("Embedding is now complete")
 ############################ Negation Handling ################################
 ###############################################################################
 
-#df_train.Reviews = df_train.Reviews.str.replace("n't", 'not')
-#df_test.Reviews = df_test.Reviews.str.replace("n't", 'not')
-
 for comment_train, comment_test in  zip(X_train, X_test):
     comment_train.replace("n't", 'not')
     comment_test.replace("n't", 'not')
 
-#df_train['Reviews'] = df_train['Reviews'].astype(str)
-#df_test['Reviews'] = df_test['Reviews'].astype(str)
-    
 ###############################################################################
 ############################ Special characters ###############################
 ###############################################################################
@@ -144,24 +116,17 @@ for comment_train, comment_test in  zip(X_train, X_test):
 ###############################################################################
 ############################ Numbers Handling #################################
 ###############################################################################
-    
-#df_train.Reviews = df_train.Reviews.apply(lambda x: re.sub(r'[0-9]+', '0', x))
-#df_test.Reviews = df_test.Reviews.apply(lambda x: re.sub(r'[0-9]+', '0', x))
 
 for comment_train, comment_test in  zip(X_train, X_test):
     re.sub(r'[0-9]+', '0', comment_train)
     re.sub(r'[0-9]+', '0', comment_test)
-    
-for i in range(len(Y_train)):
-    if (Y_train[i] >= 0.5):
-        Y_train[i] = 1
-        
-X = np.r_[X_train, X_test]
 
 ###############################################################################
 ############################## Tokenization ###################################
 ###############################################################################
-s
+
+X = np.r_[X_train, X_test]
+
 tokenizer = Tokenizer(lower=True, filters='\n\t')
 tokenizer.fit_on_texts(X)
 X_train = tokenizer.texts_to_sequences(X_train)
@@ -299,23 +264,94 @@ model.summary()
 ############################ Training the model ###############################
 ###############################################################################
 
-number_of_epochs = 50
+number_of_epochs = 4
 size_of_batch = 2048
 
 history = model.fit(X_train, Y_train,
                     epochs = number_of_epochs, verbose=1,
                     batch_size = size_of_batch, shuffle=True)
 
+this_folder = "/home/ubuntu/Documents/Kaggle/"
+data_folder = "jigsaw-unintended-bias-in-toxicity-classification/"
+
+import os
+import pickle 
+
+Model_Name = 'LSTM_v8'
+path_model = this_folder + 'Models/' 
+
+model_file = os.path.join(path_model, Model_Name)
+pickle.dump(model, open(model_file, 'wb'))
+
 ###############################################################################
 ########################### Making a prediction ###############################
 ###############################################################################
 
+model = pickle.load(open(path_model + Model_Name,'rb'))
+
 print("Predicting the labels...")
 y_pred = model.predict(X_test, batch_size=1024)
-y_pred = y_pred.argmax(axis=1).astype(float)
 print("Labels predicted!")
 
 df_test['prediction'] = y_pred
-df_test[['id', 'prediction']].to_csv('submission.csv', index=False)
+df_test[['id', 'prediction']].to_csv('/home/ubuntu/Documents/Kaggle/Results/submlssion_LSTM.csv', index=False)
+
+###############################################################################
+########################### Validation  set ###################################
+###############################################################################
+
+X_val = []
+y_val = []
+
+df_train = df_train.sample(frac=1).reset_index(drop=True)
+
+for i in range(len(df_test)):
+    review, label = df_train.iloc[i]['Reviews'], df_train.iloc[i]['Label']
+    X_val += [review]
+    y_val += [label]
+    
+for i in range(len(y_val)):
+    if (y_val[i] >= 0.5):
+        y_val[i] = 1
+    else:
+        y_val[i] = 0 
+        
+X_val = tokenizer.texts_to_sequences(X_val)
+X_val = sequence.pad_sequences(X_val, maxlen=maxlen, padding='post')
+
+print("Predicting the labels for validation...")
+y_val_pred = model.predict(X_val, batch_size=1024)
+print("Labels have been predicted!")
+
+for i in range(len(y_val_pred)):
+    if (y_val_pred[i] >= 0.5):
+        y_val_pred[i] = 1
+    else:
+        y_val_pred[i] = 0 
+
+from sklearn.metrics import accuracy_score
+
+print("Accuracy for Validation set : " + str(accuracy_score(y_true = y_val, y_pred = y_val_pred)*100) + " %")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 

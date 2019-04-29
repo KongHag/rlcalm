@@ -23,7 +23,7 @@ from profanity import profanity ##pip install profanity
 from keras.preprocessing import sequence
 from keras.preprocessing.text import Tokenizer
 
-from sklearn.utils import Shuffle
+from sklearn.utils import shuffle
 from sklearn.preprocessing import OneHotEncoder 
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import RandomizedSearchCV
@@ -86,7 +86,7 @@ for i in range(len(y_train)): ##Making it 1 or 0
     else:
         y_train[i] = 0
         
-X_train, y_train = Shuffle(X_train, y_train, random_state = 0)        
+X_train, y_train = shuffle(X_train, y_train, random_state = 0)        
         
 y_train = np.array(y_train)  ## [0 1] means that the comment is toxic
 OneHotEncoder = OneHotEncoder(sparse = False)
@@ -342,12 +342,31 @@ def train_classifier(X_train, y_train_encoded):
     logging.info("Saving classification model")
     return model
 
-model = train_classifier(X_train, y_train_encoded)
+
+#model = train_classifier(X_train, y_train_encoded)
+
+###############################################################################
+############################ Loading model ####################################
+###############################################################################
+
+import pickle
+    
+model = pickle.load(open(path_model + Model_Name,'rb'))
+model.get_params()
 
 
+###############################################################################
+######################### Features Importances ################################
+###############################################################################
 
+import matplotlib.pyplot as plt
 
+x = [i for i in range(len(X_train[0,:]))]
+y = model.feature_importances_
+width = 1.0
 
+plt.bar(x, y, width, color = 'b')
+plt.show()
 
 
 
