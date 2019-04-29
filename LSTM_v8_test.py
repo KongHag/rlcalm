@@ -15,7 +15,6 @@ from keras.layers import *
 from keras.models import Model
 from keras.optimizers import Adam 
 
-
 """
 COPYRIGHT A2IM-ROBOTADVISORS & INSTITUT LOUIS BACHELIER
 DEVELOPPER : JDEM-ILB
@@ -34,7 +33,6 @@ session_conf = tf.ConfigProto(
     inter_op_parallelism_threads=1)
 sess = tf.Session(graph=tf.get_default_graph(), config=session_conf)
 K.set_session(sess)
-
 
 print("Loading data...")
 df_train = pd.read_csv("/home/ubuntu/Documents/Kaggle/jigsaw-unintended-bias-in-toxicity-classification/train.csv")
@@ -232,7 +230,6 @@ class Attention(Layer):
 
     def compute_output_shape(self, input_shape):
         return input_shape[0],  self.features_dim
-    
 
 def build_model(maxlen, vocab_size, embedding_size, embedding_matrix):
     input_words = Input((maxlen, ))
@@ -240,21 +237,16 @@ def build_model(maxlen, vocab_size, embedding_size, embedding_matrix):
                         embedding_size,
                         weights=[embedding_matrix],
                         trainable=False)(input_words)
-    
     x_words = SpatialDropout1D(0.3)(x_words)
     x_words = Bidirectional(LSTM(128, return_sequences=True))(x_words)
     x_words = Bidirectional(LSTM(128, return_sequences=True))(x_words)
-    
     att = Attention(maxlen)(x_words)
     avg_pool1 = GlobalAveragePooling1D()(x_words)
     max_pool1 = GlobalMaxPooling1D()(x_words)
-    
     x = concatenate([att,avg_pool1, max_pool1])
-
     pred = Dense(1, activation='sigmoid')(x)
     model = Model(inputs=input_words, outputs=pred)
     return model
-
 
 model = build_model(maxlen, vocab_size, embedding_size, embedding_matrix)
 model.compile(optimizer = Adam(0.005), loss='binary_crossentropy', metrics=['accuracy'])
