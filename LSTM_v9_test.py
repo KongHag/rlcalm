@@ -124,24 +124,28 @@ all_identity_columns = ['asian', 'atheist', 'bisexual',
        'psychiatric_or_mental_illness', 'transgender', 'white']
 
 def convert_df_to_bool_minorities(df):
+    bool_df = df.copy()
     for minority in all_identity_columns:
-        df[minority] = np.where(df[minority] == 1, True, False)
+        bool_df[minority] = np.where(df[minority] == 1, True, False)
+    return bool_df
         
 def from_Y_to_label(y, i):
     label = str(i) + '_'
     for j in range(len(all_identity_columns)):
         if y[j][i]:
-            label += all_identity_columns[j]
+            label += all_identity_columns[j] + '_'
+    return label
 
-def read_minorities_dataset(initial_dataset, test_size):
+def read_minorities_dataset(initial_dataset):
     print("Reading and labelling the data...")
     dataset = convert_df_to_bool_minorities(initial_dataset)
     X = dataset.Reviews
-    Y = np.array([dataset.target.tolist(), dataset.male.tolist(), dataset.female.tolist(), 
-                        dataset.homosexual_gay_or_lesbian.tolist(), dataset.christian.tolist(), dataset.jewish.tolist(), dataset.muslim.tolist(), 
-                        dataset.black.tolist(), dataset.white.tolist(), dataset.psychiatric_or_mental_illness.tolist(), dataset.severe_toxicity.tolist(), dataset.obscene.tolist(),
-                        dataset.identity_attack.tolist(), dataset.insult.tolist(), dataset.threat.tolist(), dataset.rating.tolist(),dataset.toxicity_annotator_count.tolist(), 
-                        dataset.identity_annotator_count.tolist(),dataset.article_id.tolist()])                       
+    Y = np.array([dataset.asian.tolist(), dataset.atheist.tolist(), 
+                        dataset.bisexual.tolist(), dataset.black.tolist(), dataset.buddhist.tolist(), dataset.christian.tolist(), 
+                        dataset.female.tolist(), dataset.heterosexual.tolist(), dataset.hindu.tolist(), dataset.homosexual_gay_or_lesbian.tolist(), dataset.intellectual_or_learning_disability.tolist(),
+                        dataset.jewish.tolist(), dataset.latino.tolist(), dataset.male.tolist(), dataset.muslim.tolist(),dataset.other_disability.tolist(), 
+                        dataset.other_gender.tolist(),dataset.other_race_or_ethnicity.tolist(), dataset.other_religion.tolist(), dataset.other_religion.tolist(), dataset.other_sexual_orientation.tolist(), dataset.physical_disability.tolist(), 
+                        dataset.psychiatric_or_mental_illness.tolist(), dataset.transgender.tolist(), dataset.white.tolist()])                     
     X = minority_label_sentences(X, Y)
     return X
 
@@ -163,7 +167,7 @@ def minority_label_sentences(x, y):
 ###############################################################################
     
 WORKERS = 8
-ITERATIONS = 15
+ITERATIONS = 20
 VOCAB_SIZE = 1669827
 LEARNING_RATE = 0.4
 BATCH_SIZE = 128
@@ -208,15 +212,15 @@ def train_doc2vec(corpus, model_file):
 ###############################################################################
     
 if __name__ == "__main__":
-    print("Reading toxic data...")
-    all_toxic_data = read_toxicity_dataset(df_train)
-    print("Training the doc2vec Model for Toxicity...")
-    d2v_model_toxic = train_doc2vec(all_toxic_data, toxic_model_name)
-    print("Successfully saved !\n")
     print("Reading minority data...")
     all_minority_data = read_minorities_dataset(df_train)
-    print("Training the doc2vec Model for Minorities...")
+    print("Training the doc2vec model for minorities...")
     d2v_model = train_doc2vec(all_minority_data, minority_model_name)
+    print("Successfully saved !\n")
+    print("Reading toxic data...")
+    all_toxic_data = read_toxicity_dataset(df_train)
+    print("Training the doc2vec model for toxicity...")
+    d2v_model_toxic = train_doc2vec(all_toxic_data, toxic_model_name)
 
 ###############################################################################
 #################### Loading models and getting vectors #######################
