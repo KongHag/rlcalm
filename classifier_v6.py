@@ -193,7 +193,7 @@ def train_doc2vec(corpus):
         # shuffle the corpus
         random.shuffle(corpus)
         # decrease the learning rate
-        d2v.alpha -= 0.0002
+        d2v.alpha -= 0.00 02
         # fix the learning rate, no decay
         d2v.min_alpha = d2v.alpha
 

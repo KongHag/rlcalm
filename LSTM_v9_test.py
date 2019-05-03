@@ -4,6 +4,7 @@
 import re
 import random
 import logging
+import datetime
 import numpy as np
 import pandas as pd
 
@@ -80,21 +81,21 @@ def clean(text):
         text = clean_numbers(text)
     return text
 
+###############################################################################
+#################### Reading and labelling the data ###########################
+###############################################################################
+    
 def convert_df_to_bool_toxicity(df):
     bool_df = df.copy()
     bool_df['Label'] = np.where(df['Label'] >= 0.5, True, False)
     return bool_df
-
-###############################################################################
-#################### Reading and labelling the data ###########################
-###############################################################################
     
 def read_toxicity_dataset(initial_dataset):
     print("Reading and labelling the data...")
     dataset = convert_df_to_bool_toxicity(initial_dataset)
     X = dataset.Reviews
-    Y = np.array([dataset.Label.tolist()])                       
-    X = toxic_label_sentences(X, Y)
+    Y = np.array([dataset.Label.tolist()])                    
+    X = toxic_label_sentences(X, np.transpose(Y))
     return X
 
 def toxic_label_sentences(x, y):
@@ -111,61 +112,6 @@ def toxic_label_sentences(x, y):
     return labeled
 
 ###############################################################################
-#################### Building doc2vec model ###################################
-###############################################################################
-    
-WORKERS = 8
-ITERATIONS = 30
-VOCAB_SIZE = 1669827
-LEARNING_RATE = 0.4
-BATCH_SIZE = 128
-VERBOSE = 1
-
-model_path = this_folder_path + "Doc2Vec/"
-toxic_model_name = model_path + "toxic_doc2vec_model"
-
-import datetime
-    
-def train_doc2vec(corpus, model_file):
-    print("Building the Doc2Vec model")
-    d2v = doc2vec.Doc2Vec(min_count=1,  # Ignores all words with total frequency lower than this
-                          window=10,  # The maximum distance between the current and predicted word within a sentence
-                          vector_size=300,  # Dimensionality of the generated feature vectors
-                          workers=WORKERS,  # Number of worker threads to train the model
-                          alpha=0.025,  # The initial learning rate
-                          min_alpha=0.00025,  # Learning rate will linearly drop to min_alpha as training progresses
-                          dm=0)  # dm defines the training algorithm. If dm=1 means 'distributed memory' (PV-DM)
-                                 # and dm =0 means 'distributed bag of words' (PV-DBOW)
-    d2v.build_vocab(corpus)
-
-    print("Training Doc2Vec model...")
-    for epoch in range(ITERATIONS):
-        print("Starting epoch number ", epoch)
-        t0 = datetime.datetime.now().timestamp()
-        logging.info('Training iteration #{0}'.format(epoch))
-        d2v.train(corpus, total_examples=d2v.corpus_count, epochs=d2v.epochs)
-        # shuffle the corpus
-        random.shuffle(corpus)
-        # decrease the learning rate
-        d2v.alpha -= 0.0002
-        # fix the learning rate, no decay
-        d2v.min_alpha = d2v.alpha
-        t1 = datetime.datetime.now().timestamp()
-        print("The epoch lasted ", t1-t0, " seconds.")
-
-    print("Saving the Doc2Vec model...")
-    d2v.save(model_file)
-    return d2v
-
-###############################################################################
-#################### Training doc2vec model for toxicity ######################
-###############################################################################
-    
-if __name__ == "__main__":
-    all_data = read_toxicity_dataset(df_train)
-    d2v_model = train_doc2vec(all_data, model_path + toxic_model_name)
-
-###############################################################################
 ######################## The same for minority ################################
 ###############################################################################
     
@@ -176,9 +122,6 @@ all_identity_columns = ['asian', 'atheist', 'bisexual',
        'other_gender', 'other_race_or_ethnicity', 'other_religion',
        'other_sexual_orientation', 'physical_disability',
        'psychiatric_or_mental_illness', 'transgender', 'white']
-
-model_path = this_folder_path + "Doc2Vec/"
-minority_model_name = model_path + "minority_doc2vec_model"
 
 def convert_df_to_bool_minorities(df):
     for minority in all_identity_columns:
@@ -216,12 +159,64 @@ def minority_label_sentences(x, y):
     return labeled
 
 ###############################################################################
-#################### Training doc2vec model for toxicity ######################
+#################### Building doc2vec model ###################################
+###############################################################################
+    
+WORKERS = 8
+ITERATIONS = 15
+VOCAB_SIZE = 1669827
+LEARNING_RATE = 0.4
+BATCH_SIZE = 128
+VERBOSE = 1
+
+model_path = this_folder_path + "Doc2Vec/"
+
+toxic_model_name = model_path + "toxic_doc2vec_model"
+minority_model_name = model_path + "minority_doc2vec_model"
+ 
+def train_doc2vec(corpus, model_file):
+    print("Building the Doc2Vec model")
+    d2v = doc2vec.Doc2Vec(min_count=1,  # Ignores all words with total frequency lower than this
+                          window=10,  # The maximum distance between the current and predicted word within a sentence
+                          vector_size=300,  # Dimensionality of the generated feature vectors
+                          workers=WORKERS,  # Number of worker threads to train the model
+                          alpha=0.025,  # The initial learning rate
+                          min_alpha=0.00025,  # Learning rate will linearly drop to min_alpha as training progresses
+                          dm=0)  # dm defines the training algorithm. If dm=1 means 'distributed memory' (PV-DM)
+                                 # and dm =0 means 'distributed bag of words' (PV-DBOW)
+    d2v.build_vocab(corpus)
+    print("Training Doc2Vec model...")
+    for epoch in range(ITERATIONS):
+        print("Starting epoch number ", epoch, ' out of ', ITERATIONS, ' epochs.')
+        t0 = datetime.datetime.now().timestamp()
+        logging.info('Training iteration #{0}'.format(epoch))
+        d2v.train(corpus, total_examples=d2v.corpus_count, epochs=d2v.epochs)
+        # shuffle the corpus
+        random.shuffle(corpus)
+        # decrease the learning rate
+        d2v.alpha -= 0.0002
+        # fix the learning rate, no decay
+        d2v.min_alpha = d2v.alpha
+        t1 = datetime.datetime.now().timestamp()
+        print("The epoch lasted ", t1-t0, " seconds.")
+    print("Saving the Doc2Vec model...")
+    d2v.save(model_file)
+    return d2v
+
+###############################################################################
+########################## Training doc2vec models ############################
 ###############################################################################
     
 if __name__ == "__main__":
-    all_data = read_minorities_dataset(df_train)
-    d2v_model = train_doc2vec(all_data, minority_model_name)
+    print("Reading toxic data...")
+    all_toxic_data = read_toxicity_dataset(df_train)
+    print("Training the doc2vec Model for Toxicity...")
+    d2v_model_toxic = train_doc2vec(all_toxic_data, toxic_model_name)
+    print("Successfully saved !\n")
+    print("Reading minority data...")
+    all_minority_data = read_minorities_dataset(df_train)
+    print("Training the doc2vec Model for Minorities...")
+    d2v_model = train_doc2vec(all_minority_data, minority_model_name)
 
 ###############################################################################
 #################### Loading models and getting vectors #######################

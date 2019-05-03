@@ -2,18 +2,20 @@
 # -*- coding: utf-8 -*-
 
 import re
-import tqdm
+import os
+import pickle 
 import numpy as np
 import pandas as pd
 import tensorflow as tf
 import keras.backend as K
-from keras.preprocessing import text, sequence
-from keras.preprocessing.text import Tokenizer
-from keras.engine.topology import Layer
-from keras import initializers, regularizers, constraints
 from keras.layers import *
-from keras.models import Model
+from keras.models import Model, load_model
 from keras.optimizers import Adam 
+from keras.engine.topology import Layer
+from sklearn.metrics import accuracy_score
+from keras.preprocessing.text import Tokenizer
+from keras.preprocessing import text, sequence
+from keras import initializers, regularizers, constraints
 
 """
 COPYRIGHT A2IM-ROBOTADVISORS & INSTITUT LOUIS BACHELIER
@@ -59,13 +61,13 @@ df_test = df_test.rename(columns=({"comment_text":"Reviews"}))
 X_train = df_train['Reviews'].values
 Y_train = df_train['Label'].values
 X_test = df_test['Reviews'].values
-    
+
 for i in range(len(Y_train)):
     if (Y_train[i] >= 0.5):
         Y_train[i] = 1
     else:
         Y_train[i] = 0
-    
+
 ###############################################################################
 ################################## Embedding !#################################
 ###############################################################################
@@ -149,6 +151,7 @@ def filter_embeddings(embeddings, word_index, vocab_size, dim=300):
 embedding_size = 200 ##Twitter Glove format
 embedding_matrix = filter_embeddings(embeddings, tokenizer.word_index,
                                      vocab_size, embedding_size)
+
 print('OOV: {}'.format(len(set(tokenizer.word_index) - set(embeddings))))
 
 ###############################################################################
@@ -230,6 +233,8 @@ class Attention(Layer):
 
     def compute_output_shape(self, input_shape):
         return input_shape[0],  self.features_dim
+    
+    
 
 def build_model(maxlen, vocab_size, embedding_size, embedding_matrix):
     input_words = Input((maxlen, ))
@@ -264,26 +269,19 @@ history = model.fit(X_train, Y_train,
                     batch_size = size_of_batch, shuffle=True)
 
 this_folder = "/home/ubuntu/Documents/Kaggle/"
-data_folder = "jigsaw-unintended-bias-in-toxicity-classification/"
+weights_folder = this_folder + 'Weights/'
 
-import os
-import pickle 
-
-Model_Name = 'LSTM_v8'
-path_model = this_folder + 'Models/' 
-
-model_file = os.path.join(path_model, Model_Name)
-pickle.dump(model, open(model_file, 'wb'))
+model.save_weights(weights_folder + 'LSTM_weights.h5')
 
 ###############################################################################
 ########################### Making a prediction ###############################
 ###############################################################################
 
-model = pickle.load(open(path_model + Model_Name,'rb'))
-
 print("Predicting the labels...")
 y_pred = model.predict(X_test, batch_size=1024)
 print("Labels predicted!")
+
+y_pred[4]
 
 df_test['prediction'] = y_pred
 df_test[['id', 'prediction']].to_csv('/home/ubuntu/Documents/Kaggle/Results/submlssion_LSTM.csv', index=False)
@@ -321,29 +319,4 @@ for i in range(len(y_val_pred)):
     else:
         y_val_pred[i] = 0 
 
-from sklearn.metrics import accuracy_score
-
 print("Accuracy for Validation set : " + str(accuracy_score(y_true = y_val, y_pred = y_val_pred)*100) + " %")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
