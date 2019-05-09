@@ -1,21 +1,23 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
 import re
+import tqdm
 import random
 import logging
 import datetime
 import numpy as np
 import pandas as pd
 
-from gensim.models import doc2vec
-
+from gensim.models import Doc2Vec
+from gensim.models.doc2vec import TaggedDocument
 import keras.backend as K
 from keras.models import Model
 from keras.optimizers import Adam 
 from keras.engine.topology import Layer
+from keras.preprocessing.text import Tokenizer
+from keras.preprocessing import sequence
 from keras import initializers, regularizers, constraints
-from keras.layers import Input, GlobalAveragePooling1D, GlobalMaxPooling1D, Dense, LSTM, SpatialDropout1D, Bidirectional, concatenate
+from keras.layers import Input, GlobalAveragePooling1D, GlobalMaxPooling1D, Dense, LSTM, SpatialDropout1D, Bidirectional, concatenate, Embedding
 
 """
 COPYRIGHT A2IM-ROBOTADVISORS & INSTITUT LOUIS BACHELIER
@@ -27,7 +29,7 @@ THIS SCRIPT IS INSPIRED FROM SEVERAL KERNELS, REFERENCE BELOW :
     - https://www.kaggle.com/thousandvoices/simple-lstm
     - https://www.kaggle.com/rahulvks/lstm-attention-keras
 """
-this_folder_path = "/home/ubuntu/Documents/Kaggle/"
+this_folder_path = "/home/ilb/Documents/Kaggle/"
 data_path = this_folder_path + "jigsaw-unintended-bias-in-toxicity-classification/"
 
 print("Loading data...")
@@ -42,6 +44,8 @@ print("Test shape:", df_test.shape)
 
 df_train = df_train.rename(columns=({"comment_text":"Reviews"}))
 df_train = df_train.rename(columns=({"target":"Label"}))
+df_test = df_test.rename(columns=({"comment_text":"Reviews"}))
+df_test = df_test.rename(columns=({"target":"Label"}))
 
 ###############################################################################
 ########################### Cleaning the data #################################
@@ -115,7 +119,7 @@ def toxic_label_sentences(x, y):
     for i, v in enumerate(x):
         label = str(i) + '_' + str(y[i])
         v = clean(text=v)
-        labeled.append(doc2vec.TaggedDocument(v.split(), label)) # Comment + Tag
+        labeled.append(TaggedDocument(v.split(), label)) # Comment + Tag
     return labeled
 
 ###############################################################################
@@ -170,7 +174,7 @@ def minority_label_sentences(x, y):
     for i, v in enumerate(x):
         label = from_Y_to_label(y, i)
         v = clean(text=v)
-        labeled.append(doc2vec.TaggedDocument(v.split(), label)) # Comment + Tag
+        labeled.append(TaggedDocument(v.split(), label)) # Comment + Tag
     return labeled
 
 ###############################################################################
@@ -185,13 +189,12 @@ BATCH_SIZE = 128
 VERBOSE = 1
 
 model_path = this_folder_path + "Doc2Vec/"
-
 toxic_model_name = model_path + "toxic_doc2vec_model"
 minority_model_name = model_path + "minority_doc2vec_model"
  
 def train_doc2vec(corpus, model_file):
     print("Building the Doc2Vec model")
-    d2v = doc2vec.Doc2Vec(min_count=1,  # Ignores all words with total frequency lower than this
+    d2v = Doc2Vec.Doc2Vec(min_count=1,  # Ignores all words with total frequency lower than this
                           window=10,  # The maximum distance between the current and predicted word within a sentence
                           vector_size=300,  # Dimensionality of the generated feature vectors
                           workers=WORKERS,  # Number of worker threads to train the model
@@ -222,85 +225,66 @@ def train_doc2vec(corpus, model_file):
 ########################## Training doc2vec models ############################
 ###############################################################################
     
-if __name__ == "__main__":
-    print("Reading minority data...")
-    all_minority_data = read_minorities_dataset(df_train)
-    print("Training the doc2vec model for minorities...")
-    d2v_model = train_doc2vec(all_minority_data, minority_model_name)
-    print("Successfully saved !\n")
-    print("Reading toxic data...")
-    all_toxic_data = read_toxicity_dataset(df_train)
-    print("Training the doc2vec model for toxicity...")
-    d2v_model_toxic = train_doc2vec(all_toxic_data, toxic_model_name)
-
-###############################################################################
-#################### Loading models and getting vectors #######################
-###############################################################################
-
-#d2v_model_toxicity = doc2vec.Doc2Vec.load(toxic_model_name)
-#d2v_model_minority = doc2vec.Doc2vec.load(minority_model_name)
-
-###############################################################################
-################## Getting concatenated vectors ###############################
-###############################################################################
-      
-def get_vectors_from_labeled_data(d2v_model_toxicity, corpus, vec_size):
-    """
-    Get vectors from trained doc2vec model
-    :param doc2vec_toxic_model: Trained Doc2Vec model through toxicity
-    :param toxic_corpus: Size of the data with toxic labels
-    :param vec_size: Size of the embedding vectors 
-    :return: list of vectors
-    """
-    corpus_size = len(corpus)
-    vectors = np.zeros((corpus, vec_size))
-    for i in range(0, corpus_size):
-        tag = corpus[i].tags
-        vectors[i] = d2v_model_toxicity.docvecs.doctags[tag]
-    return vectors
-
-def get_toxic_vectors(d2v_model_toxicity, toxic_corpus, vec_size):
-    """
-    Get vectors from trained doc2vec model
-    :param doc2vec_toxic_model: Trained Doc2Vec model through toxicity
-    :param toxic_corpus: Size of the data with toxic labels
-    :param vec_size: Size of the embedding vectors 
-    :return: list of vectors
-    """
-    corpus_size = len(toxic_corpus)
-    t, f = '[True]', '[False]'
-    toxic_vectors = np.zeros((corpus_size, vec_size))
-    for i in range(0, corpus_size):
-        try:
-            prefix = str(i) + '_' + t
-            toxic_vectors[i] = d2v_model_toxicity.docvecs.doctags[prefix]
-        except : 
-            prefix = str(i) + '_' + f
-            toxic_vectors[i] = d2v_model_toxicity.docvecs.doctags[prefix]
-    return toxic_vectors
-
-vec_size = 300
-
-minority_vectors = get_vectors_from_labeled_data(d2v_model, all_minority_data, vec_size)
-toxic_vectors = get_vectors_from_labeled_data(d2v_model_toxic, all_toxic_data, vec_size)
-
-def merge_vectors(minority_vectors, toxic_vectors, corpus_size, vector_size):
-    """
-    Concatenates two embedding models in one
-    :param minority_vectors: Minority vectors for the comments
-    :param toxic_vectors: Toxic vectors for the comments
-    :param corpus_size: Size of the corpus (1,8 M)
-    :param vector_size: Size of the embedding vectors (300 each)
-    :return: all_vectors: Vectors of the 1,8 M comments with size 600
-    """
-    all_vectors = np.zeros((corpus_size, vector_size*2))
-    for i in range(corpus_size):
-        all_vectors[i] = np.concatenate((toxic_vectors[i], minority_vectors[i]))
-    return all_vectors
+TRAINING = False
     
-X_train = merge_vectors(minority_vectors, toxic_vectors, len(all_minority_data), vec_size)
-Y_train = df_train['Labels'].values
-Y_train = np.where(Y_train >= 0.5, 1, 0)
+if __name__ == "__main__" and TRAINING :
+    print("---> Reading and labelling data... \n")
+    all_minority_data = read_minorities_dataset(df_train)
+    all_toxic_data = read_toxicity_dataset(df_train)
+    print("---> Training the doc2vec model for minorities...\n")
+    d2v_model_minority = train_doc2vec(all_minority_data, minority_model_name)    
+    print("---> Training the doc2vec model for toxicity...\n")
+    d2v_model_toxicity = train_doc2vec(all_toxic_data, toxic_model_name)
+    print("---> Well done young padawan, your embedding is ready...")
+
+###############################################################################
+########## Loading models and getting labelled vectors ########################
+###############################################################################
+
+d2v_model_toxicity = Doc2Vec.load(toxic_model_name)
+d2v_model_minority = Doc2Vec.load(minority_model_name)
+
+###############################################################################
+################## Preparing the EMbedding Model ##############################
+###############################################################################
+
+x_train = df_train['Reviews'].values
+x_test = df_test['Reviews'].values
+y_train = df_train['Label'].values
+y_train = np.where(y_train >= 0.5, 1, 0)
+
+for i in tqdm.trange(len(x_train)):
+    x_train[i] = clean(x_train[i])
+
+for i in tqdm.trange(len(x_test)):
+    x_test[i] = clean(x_test[i])
+    
+x = np.r_[x_train, x_test]
+
+tokenizer = Tokenizer(lower=True, filters='\n\t')
+tokenizer.fit_on_texts(x)
+x_train = tokenizer.texts_to_sequences(x_train)
+x_test  = tokenizer.texts_to_sequences(x_test)
+vocab_size = len(tokenizer.word_index) + 1  # +1 is for zero padding.
+print('vocabulary size: {}'.format(vocab_size))
+
+maxlen = len(max((s for s in np.r_[x_train, x_test]), key=len))
+x_train = sequence.pad_sequences(x_train, maxlen=maxlen, padding='post')
+x_test = sequence.pad_sequences(x_test, maxlen=maxlen, padding='post')
+
+def filter_embeddings(d2v_model_toxicity, d2v_model_minority, word_index, vocab_size, dim=600):
+    embedding_matrix = np.zeros([vocab_size, dim])
+    for word, i in word_index.items():
+        if i >= vocab_size:
+            continue
+        vector = np.concatenate((d2v_model_toxicity.infer_vector(word), d2v_model_minority.infer_vector(word)))
+        if vector is not None:
+            embedding_matrix[i] = vector
+    return embedding_matrix
+
+embedding_size = 600 ##Concatenated sum
+embedding_matrix = filter_embeddings(d2v_model_toxicity, d2v_model_minority, tokenizer.word_index,
+                                     vocab_size, embedding_size)    
 
 ###############################################################################
 ############################ Attention Class ##################################
@@ -385,39 +369,41 @@ class Attention(Layer):
 ###############################################################################
 ########################## Building the Model #################################
 ###############################################################################
-        
-input_size = 2*vec_size
     
-def build_model():
-    input_words = Input((input_size, ))
-    x_words = SpatialDropout1D(0.3)(input_words)
+def build_model(maxlen, vocab_size, embedding_size, embedding_matrix):
+    input_words = Input((maxlen, ))
+    x_words = Embedding(vocab_size,
+                        embedding_size,
+                        weights=[embedding_matrix],
+                        trainable=False)(input_words)
+    x_words = SpatialDropout1D(0.3)(x_words)
     x_words = Bidirectional(LSTM(128, return_sequences=True))(x_words)
     x_words = Bidirectional(LSTM(128, return_sequences=True))(x_words)
-    att = Attention(input_size)(x_words)
+    att = Attention(maxlen)(x_words)
     avg_pool1 = GlobalAveragePooling1D()(x_words)
     max_pool1 = GlobalMaxPooling1D()(x_words)
     x = concatenate([att,avg_pool1, max_pool1])
     pred = Dense(1, activation='sigmoid')(x)
     model = Model(inputs=input_words, outputs=pred)
-    return model    
+    return model   
 
 ###############################################################################
 ########################## Training the Model #################################
 ###############################################################################
 
-model = build_model()
+model = build_model(maxlen, vocab_size, embedding_size, embedding_matrix)
 model.compile(optimizer = Adam(0.005), loss='binary_crossentropy', metrics=['accuracy'])
 model.summary()
 
-number_of_epochs = 4
-size_of_batch = 2048
+number_of_epochs = 5
+size_of_batch = 512
 
 weights_folder = this_folder_path + 'Weights/'
 
-history = model.fit(X_train, Y_train,
+history = model.fit(x_train, y_train,
                     epochs = number_of_epochs, verbose=1,
                     batch_size = size_of_batch, shuffle=True)
 
-model.save_weights(weights_folder + 'LSTM_v9_weights.h5')
+model.save_weights(weights_folder + 'LSTM_doc2Vec_weights.h5')
 
 
