@@ -15,9 +15,10 @@ from keras.models import Model
 from keras.optimizers import Adam 
 from keras.engine.topology import Layer
 from keras.preprocessing.text import Tokenizer
+from keras.callbacks import EarlyStopping, ModelCheckpoint
 from keras.preprocessing import sequence
 from keras import initializers, regularizers, constraints
-from keras.layers import Input, GlobalAveragePooling1D, GlobalMaxPooling1D, Dense, LSTM, SpatialDropout1D, Bidirectional, concatenate, Embedding
+from keras.layers import Input, GlobalAveragePooling1D, GlobalMaxPooling1D, Dense, LSTM, SpatialDropout1D, Dropout, Bidirectional, concatenate, Embedding
 
 """
 COPYRIGHT A2IM-ROBOTADVISORS & INSTITUT LOUIS BACHELIER
@@ -29,7 +30,7 @@ THIS SCRIPT IS INSPIRED FROM SEVERAL KERNELS, REFERENCE BELOW :
     - https://www.kaggle.com/thousandvoices/simple-lstm
     - https://www.kaggle.com/rahulvks/lstm-attention-keras
 """
-this_folder_path = "/home/ilb/Documents/Kaggle/"
+this_folder_path = "/media/ubuntu/Data/Kaggle/"
 data_path = this_folder_path + "jigsaw-unintended-bias-in-toxicity-classification/"
 
 print("Loading data...")
@@ -245,7 +246,7 @@ d2v_model_toxicity = Doc2Vec.load(toxic_model_name)
 d2v_model_minority = Doc2Vec.load(minority_model_name)
 
 ###############################################################################
-################## Preparing the EMbedding Model ##############################
+################## Preparing the Embedding Model ##############################
 ###############################################################################
 
 x_train = df_train['Reviews'].values
@@ -379,11 +380,16 @@ def build_model(maxlen, vocab_size, embedding_size, embedding_matrix):
     x_words = SpatialDropout1D(0.3)(x_words)
     x_words = Bidirectional(LSTM(128, return_sequences=True))(x_words)
     x_words = Bidirectional(LSTM(128, return_sequences=True))(x_words)
+    
     att = Attention(maxlen)(x_words)
     avg_pool1 = GlobalAveragePooling1D()(x_words)
     max_pool1 = GlobalMaxPooling1D()(x_words)
     x = concatenate([att,avg_pool1, max_pool1])
+    
+    x = Dropout(0.5)(x)
+    x = Dense(144, activation='relu')(x)
     pred = Dense(1, activation='sigmoid')(x)
+    
     model = Model(inputs=input_words, outputs=pred)
     return model   
 
@@ -391,19 +397,26 @@ def build_model(maxlen, vocab_size, embedding_size, embedding_matrix):
 ########################## Training the Model #################################
 ###############################################################################
 
-model = build_model(maxlen, vocab_size, embedding_size, embedding_matrix)
-model.compile(optimizer = Adam(0.005), loss='binary_crossentropy', metrics=['accuracy'])
-model.summary()
-
-number_of_epochs = 5
-size_of_batch = 512
-
+best_model_path = this_folder_path + 'Models/'
 weights_folder = this_folder_path + 'Weights/'
+number_of_epochs = 30
+batch_size = 512
+learning_rate = 1e-3
+output_file = 'LSTM_v9_Doc2Vec.h5'
 
-history = model.fit(x_train, y_train,
-                    epochs = number_of_epochs, verbose=1,
-                    batch_size = size_of_batch, shuffle=True)
+def training_model(number_of_epochs, batch_size, learning_rate, output_file, vocab_size,
+                   embedding_matrix, embedding_size, maxlen):
+    model = build_model(maxlen, vocab_size, embedding_size, embedding_matrix)
+    Adam_optimizer = Adam(lr = learning_rate, decay = 1e-6, clipvalue =5)
+    early_stopping = EarlyStopping(monitor = 'val_loss', patience = 5)
+    model_checkpoint = ModelCheckpoint(best_model_path, save_best_only = True, save_weights_only = True)
+    model.summary()
+    model.compile(optimizer = Adam_optimizer, loss='binary_crossentropy', metrics=['accuracy'])
+    model.fit(x_train, y_train,
+                        epochs = number_of_epochs, verbose=1,
+                        batch_size = batch_size, shuffle=True,
+                        callbacks = [early_stopping, model_checkpoint])
+    model.save_weights(weights_folder + output_file)
 
-model.save_weights(weights_folder + 'LSTM_doc2Vec_weights.h5')
-
-
+training_model(number_of_epochs, batch_size, learning_rate, output_file, vocab_size,
+                   embedding_matrix, embedding_size, maxlen)
