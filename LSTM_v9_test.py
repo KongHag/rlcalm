@@ -48,6 +48,11 @@ df_train = df_train.rename(columns=({"target":"Label"}))
 df_test = df_test.rename(columns=({"comment_text":"Reviews"}))
 df_test = df_test.rename(columns=({"target":"Label"}))
 
+df_train['Reviews'].head(1000)
+df_train['Reviews'].iloc[983]
+df_train['Label'].iloc[983]
+
+
 ###############################################################################
 ########################### Cleaning the data #################################
 ###############################################################################
@@ -59,9 +64,18 @@ def clean_emojis(text):
     text = re.sub(r'(:\s?\(|:-\(|\)\s?:|\)-:)', ' Sad ', text)
     return text
 
+def clean_antislashes(text):
+    """Deletes the \n, the \t and the \r in an english comment"""
+    return ' '.join(''.join(text).split()).strip()
+
 def clean_negation(text):
     """ Cleans negations in english comments"""
     text = text.replace("n't", 'not')
+    return text
+
+def clean_URLs(text):
+    """ Cleans URL hyperlinks in english comments"""
+    text = re.sub(r"http\S+", "", text)
     return text
 
 def clean_special_chars(text):
@@ -78,6 +92,7 @@ def clean_numbers(text):
     return text
 
 CLEANING_EMOJIS = True
+CLEANING_ANTISLASHES = True
 CLEANING_NEGATION = True
 CLEANING_SPECIAL_CHARS = True
 CLEANING_NUMBERS = True
@@ -85,6 +100,8 @@ CLEANING_NUMBERS = True
 def clean(text):
     if CLEANING_EMOJIS:
         text = clean_emojis(text)
+    if CLEANING_ANTISLASHES:
+        text = clean_antislashes(text)
     if CLEANING_NEGATION:
         text = clean_negation(text)
     if CLEANING_SPECIAL_CHARS:
