@@ -163,9 +163,6 @@ if DELETING_DUPLICATES:
     index_duplicates = get_duplicate_indexes(df_train)
     df_train = delete_duplicates(df_train, index_duplicates)
     
-index_duplicates = get_duplicate_indexes(df_train)
-df_train.to_csv(data_path + 'train_v2.csv')
-    
 ###############################################################################
 ######################### Renaming some columns !##############################
 ###############################################################################
