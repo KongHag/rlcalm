@@ -81,76 +81,97 @@ CLEANING_NEGATION = True
 CLEANING_SPECIAL_CHARS = True
 CLEANING_NUMBERS = True
 
-DELETING_DUPLICATES = True
+DELETING_DUPLICATES = False
 
 ###############################################################################
 ############################### Load Data !####################################
 ###############################################################################
 
-if DOC2VEC_TRAINING or CLASSIFICATION_TRAINING or SUBMISSION_PREPARATION:
+if not DELETING_DUPLICATES:
     print("Loading data...",flush=True)
-    df_train = pd.read_csv(data_path + "train.csv",header=0,sep=',')
+    df_train = pd.read_csv(data_path + "train_v2.csv")
     print("Train shape:", df_train.shape,flush=True)
-    df_test = pd.read_csv(data_path + "test.csv",header=0,sep=',')
+    df_test = pd.read_csv(data_path + "test.csv")
     print("Test shape:", df_test.shape,flush=True)
 
 if DEBUG:
-    df_train = df_train
-    df_test = df_test
-    print(df_test.columns.values,flush=True)
-    print(df_test['id'].values[0],flush=True)
-
-
-###############################################################################
-######################### Renaming some columns !##############################
-###############################################################################
-    
-if DOC2VEC_TRAINING or CLASSIFICATION_TRAINING or SUBMISSION_PREPARATION:
-    df_train = df_train.rename(columns=({"comment_text":"Reviews"}))
-    df_train = df_train.rename(columns=({"target":"Label"}))
-    df_test = df_test.rename(columns=({"comment_text":"Reviews"}))
-    df_test = df_test.rename(columns=({"target":"Label"}))
+    df_train = df_train[:5000]
+    df_test = df_train[:1000]
 
 ###############################################################################
 ########################## Deleting duplicates ################################
 ###############################################################################
 
 def get_duplicate_indexes(df):
-    df_reviews = pd.DataFrame(df, columns = ["Reviews"])
+    """ Get the indexes of the review duplicates"""
+    df_reviews = pd.DataFrame(df, columns = ["comment_text"])
     duplicated_reviews_RowsDF = df_reviews[df_reviews.duplicated(keep = False)]
     return duplicated_reviews_RowsDF.index.tolist()
 
 def get_weighted_average(labels, weights):
+    """Derives a weighted average of labels. 
+       In this special case labels are the label while
+       weights are the number of toxicity annotators """
     W = sum(weights)
     res = sum([label*weight/W for (label, weight) in zip(labels, weights)])
     return res
 
-def delete_duplicates(df, index_duplicates):
-    df_res = df.copy()
-    indexes_to_treat = index_duplicates.copy()
-    while indexes_to_treat :
-        print(len(indexes_to_treat), " comments still have to be treated", flush = True)
-        indexes_to_delete = [indexes_to_treat[0]]
-        review = df["Reviews"].iloc[indexes_to_treat[0]]
-        label = df["Label"].iloc[indexes_to_treat[0]]
-        weight = df["toxicity_annotator_count"].iloc[indexes_to_treat[0]]
-        labels = [label]
-        weights = [weight]
-        for i in range(1, len(indexes_to_treat)):
-            if df["Reviews"].iloc[indexes_to_treat[i]] == review :
-                labels +=  [df["Label"].iloc[indexes_to_treat[i]]]
-                weights += [df["toxicity_annotator_count"].iloc[indexes_to_treat[i]]]
-                indexes_to_delete += [indexes_to_treat[i]]
-        for index in indexes_to_delete:
-            indexes_to_treat.remove(index)
-        weighted_average = get_weighted_average(labels, weights)
-        df_res["Label"].iloc[indexes_to_delete[0]] = weighted_average
-        df_res = df_res.drop(indexes_to_delete[1:], axis =0)
-    return df_res
+def how_many_before_me(id_, l):
+    """Nothing too fancy, just get the elements deleted 
+       before your index to get the proper lag"""
+    res = 0 
+    if l :
+        for el in l:
+            if el < id_ :
+                res += 1
+    return res
 
+def delete_duplicates(df, duplicates):
+    """Deletes all reviews duplicates and implements the new toxicity label
+       as a weighted average. Labels with more annotators are considered as
+       more relevant."""
+    df_res = df.copy()
+    duplicates = sorted(duplicates) ##Getting sure everything is in order
+    treated_rows = []
+    deleted_rows = []
+    while duplicates :
+        print(len(duplicates), " comments still need to be treated!", flush = True)
+        id_0 = duplicates[0] ## Indice
+        lag = how_many_before_me(id_0, deleted_rows)
+        review_0 = df["comment_text"].iloc[id_0]
+        label_0 = df["target"].iloc[id_0]
+        weight_0 = df["toxicity_annotator_count"].iloc[id_0]
+        labels = [label_0]
+        weights = [weight_0]
+        treated_rows = [id_0]
+        for id_ in duplicates[1:]:
+            if df["comment_text"].iloc[id_] == review_0:
+                labels += [df["target"].iloc[id_]]
+                weights += [df["toxicity_annotator_count"].iloc[id_]]
+                treated_rows += [id_]
+        weighted_average = get_weighted_average(labels, weights)
+        df_res["target"].iloc[id_0 - lag] = weighted_average
+        df_res = df_res.drop(treated_rows[1:], axis =0)
+        for deleted_row in treated_rows[1:] : 
+            deleted_rows += [deleted_row]         
+        for idx in treated_rows :
+            duplicates.remove(idx)
+    return df_res
+    
 if DELETING_DUPLICATES:
+    df_train = pd.read_csv(data_path + "train.csv")
+    df_test = pd.read_csv(data_path + "test.csv")
     index_duplicates = get_duplicate_indexes(df_train)
     df_train = delete_duplicates(df_train, index_duplicates)
+    
+###############################################################################
+######################### Renaming some columns !##############################
+###############################################################################
+
+df_train = df_train.rename(columns=({"comment_text":"Reviews"}))
+df_train = df_train.rename(columns=({"target":"Label"}))
+df_test = df_test.rename(columns=({"comment_text":"Reviews"}))
+df_test = df_test.rename(columns=({"target":"Label"}))
 
 ###############################################################################
 ########################### Cleaning the data #################################
